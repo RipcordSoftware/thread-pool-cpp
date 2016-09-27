@@ -51,32 +51,48 @@ int main() {
         } catch (const my_exception &e) {
         }
     });
-    
+
     doTest("post job to threadpool with onStart/onStop", []() {
-        std::atomic<int> someValue{0};
-        ThreadPoolOptions options;
-        options.onStart = [&someValue](){ ++someValue; };
-        options.onStop = [&someValue](){ --someValue; };
-        
+        std::atomic<int> startCount{0};
+        auto runningCount = 0;
+        std::atomic<bool> finished{false};
+
         if (true) {
+            struct ThreadPoolOptions options;
+            options.threads_count = 1;
+            options.onStart = [&startCount](auto id){ ++startCount; };
+            options.onStop = [&startCount](auto id){ --startCount; };
+            
             ThreadPool pool{options};
 
-            std::packaged_task<int()> t([&someValue](){
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                return someValue.load();
-            });
+            pool.post([&]() { runningCount = startCount; finished = true; });
 
-            std::future<int> r = t.get_future();
+            while (!finished) {
+                std::this_thread::yield();
+            }
 
-            pool.post(t);
-
-            const auto result = r.get();
-
-            ASSERT(0 < result);
-            ASSERT(pool.getWorkerCount() == result);
+            ASSERT(1 == runningCount);
+            ASSERT(1 == startCount);
         }
-        
-        ASSERT(0 == someValue);
+
+        ASSERT(0 == startCount);
     });
 
+    doTest("process job on threadpool with onStart/onStop", []() {
+        std::atomic<int> startCount{0};
+
+        if (true) {
+            ThreadPoolOptions options;
+            options.threads_count = 1;
+            options.onStart = [&startCount](auto id){ ++startCount; };
+            options.onStop = [&startCount](auto id){ --startCount; };
+
+            ThreadPool pool{options};
+
+            auto r = pool.process([&]() { return startCount.load(); });
+            ASSERT(1 == r.get());
+        }
+        
+        ASSERT(0 == startCount);
+    });
 }
