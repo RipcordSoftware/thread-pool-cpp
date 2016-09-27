@@ -109,6 +109,8 @@ struct RepostJob {
     }
 #endif
 
+    void operator()(size_t) { this->operator()(); }
+
     void operator()()
     {
         if (counter++ < REPOST_COUNT) {

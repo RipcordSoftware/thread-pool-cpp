@@ -14,7 +14,7 @@
  */
 class Worker {
 public:
-    typedef FixedFunction<void(), 128> Task;
+    typedef FixedFunction<void(size_t id), 128> Task;
     
     using OnStart = std::function<void(size_t id)>;
     using OnStop = std::function<void(size_t id)>;
@@ -108,7 +108,7 @@ inline void Worker::threadFunc(Worker *steal_donor, OnStart onStart, OnStop onSt
 
     while (m_running_flag.load(std::memory_order_relaxed))
         if (m_queue.pop(handler) || steal_donor->steal(handler)) {
-            try {handler();} catch (...) {}
+            try {handler(_id);} catch (...) {}
         } else {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }

@@ -57,7 +57,7 @@ public:
      * @note This method of posting job to thread pool is much slower than 'post()' due to std::future and
      * std::packaged_task construction overhead.
      */
-    template <typename Handler, typename R = typename std::result_of<Handler()>::type>
+    template <typename Handler, typename R = typename std::result_of<Handler(size_t)>::type>
     typename std::future<R> process(Handler &&handler);
     
     /**
@@ -113,8 +113,8 @@ inline void ThreadPool::post(Handler &&handler) {
 
 template <typename Handler, typename R>
 typename std::future<R> ThreadPool::process(Handler &&handler) {
-    std::packaged_task<R()> task([handler = std::move(handler)] () {
-        return handler();
+    std::packaged_task<R(size_t)> task([handler = std::move(handler)] (size_t id) {
+        return handler(id);
     });
 
     auto result = task.get_future();

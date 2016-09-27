@@ -12,7 +12,7 @@ int main() {
     doTest("post job", []() {
         ThreadPool pool;
 
-        std::packaged_task<int()> t([](){
+        std::packaged_task<int(size_t)> t([](size_t){
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
             return 42;
         });
@@ -27,7 +27,7 @@ int main() {
     doTest("process job", []() {
         ThreadPool pool;
 
-        std::future<int> r = pool.process([]() {
+        auto r = pool.process([](size_t) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
             return 42;
         });
@@ -40,7 +40,7 @@ int main() {
     doTest("process job with exception", []() {
         ThreadPool pool;
 
-        std::future<int> r = pool.process([]() {
+        std::future<int> r = pool.process([](size_t) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
             throw my_exception();
             return 42;
@@ -54,10 +54,12 @@ int main() {
 
     doTest("post job to threadpool with onStart/onStop", []() {
         std::atomic<int> startCount{0};
-        auto runningCount = 0;
-        std::atomic<bool> finished{false};
 
         if (true) {
+            auto runningCount = 0;
+            auto threadId = -1;
+            std::atomic<bool> finished{false};
+            
             struct ThreadPoolOptions options;
             options.threads_count = 1;
             options.onStart = [&startCount](auto id){ ++startCount; };
@@ -65,12 +67,13 @@ int main() {
             
             ThreadPool pool{options};
 
-            pool.post([&]() { runningCount = startCount; finished = true; });
+            pool.post([&](size_t id) { threadId = id; runningCount = startCount; finished = true; });
 
             while (!finished) {
                 std::this_thread::yield();
             }
 
+            ASSERT(0 == threadId);
             ASSERT(1 == runningCount);
             ASSERT(1 == startCount);
         }
@@ -82,6 +85,8 @@ int main() {
         std::atomic<int> startCount{0};
 
         if (true) {
+            auto threadId = -1;
+            
             ThreadPoolOptions options;
             options.threads_count = 1;
             options.onStart = [&startCount](auto id){ ++startCount; };
@@ -89,8 +94,10 @@ int main() {
 
             ThreadPool pool{options};
 
-            auto r = pool.process([&]() { return startCount.load(); });
+            auto r = pool.process([&](size_t id) { threadId = id; return startCount.load(); });
             ASSERT(1 == r.get());
+
+            ASSERT(0 == threadId);
         }
         
         ASSERT(0 == startCount);
