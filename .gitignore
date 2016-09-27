@@ -2,3 +2,12 @@ boost*
 build*
 thread_pool-build*
 *.pro.user
+
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+CMakeFiles/
+
+benchmark/benchmark
+tests/fixed_function_test
+tests/thread_pool_test
